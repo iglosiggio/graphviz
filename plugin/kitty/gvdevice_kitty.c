@@ -22,7 +22,7 @@
 #include <zlib.h>
 #endif
 
-int zlib_compress(char* source, size_t source_len, char** dest, size_t* dest_len, int level)
+static int zlib_compress(char* source, size_t source_len, char** dest, size_t* dest_len, int level)
 {
 #ifdef HAVE_LIBZ
 	int ret;
@@ -61,22 +61,25 @@ int zlib_compress(char* source, size_t source_len, char** dest, size_t* dest_len
 static const char base64_alphabet[] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 
-static void fix_colors(char* imagedata, size_t imagedata_size) {
+static void fix_colors(char* imagedata, size_t imagedata_size)
+{
 	size_t i = 0;
 	while (i < imagedata_size) {
-		char blue = imagedata[i+0];
+		char blue = imagedata[i];
 		char red = imagedata[i+2];
-		imagedata[i+0] = red;
+		imagedata[i] = red;
 		imagedata[i+2] = blue;
 		i += 4;
 	}
 }
 
-static size_t base64_encoded_size(size_t original_size) {
+static size_t base64_encoded_size(size_t original_size)
+{
 	return (original_size + 2) / 3 * 4;
 }
 
-static char* base64_encode(const char* data, size_t size) {
+static char* base64_encode(const char* data, size_t size)
+{
 	size_t buf_i = 0;
 	size_t data_i = 0;
 	char* buf = malloc(base64_encoded_size(size));
@@ -139,7 +142,7 @@ static void kitty_write(char* data, size_t data_size, int width, int height, boo
 	free(output);
 }
 
-static void kitty_finalize(GVJ_t* job)
+static void kitty_format(GVJ_t* job)
 {
 	char* imagedata = job->imagedata;
 	size_t imagedata_size = job->width * job->height * 4;
@@ -147,7 +150,7 @@ static void kitty_finalize(GVJ_t* job)
 	kitty_write(job->imagedata, imagedata_size, job->width, job->height, false);
 }
 
-static void zkitty_finalize(GVJ_t* job)
+static void zkitty_format(GVJ_t* job)
 {
 	char* imagedata = job->imagedata;
 	size_t imagedata_size = job->width * job->height * 4;
@@ -169,8 +172,8 @@ static gvdevice_features_t device_features_kitty = {
 
 static gvdevice_engine_t device_engine_kitty = {
     NULL,			/* kitty_initialize */
-    NULL,			/* kitty_format */
-    kitty_finalize,
+    kitty_format,
+    NULL,			/* kitty_finalize */
 };
 
 static gvdevice_features_t device_features_zkitty = {
@@ -182,8 +185,8 @@ static gvdevice_features_t device_features_zkitty = {
 
 static gvdevice_engine_t device_engine_zkitty = {
     NULL,			/* zkitty_initialize */
-    NULL,			/* zkitty_format */
-    zkitty_finalize,
+    zkitty_format,
+    NULL,			/* zkitty_finalize */
 };
 
 gvplugin_installed_t gvdevice_types_kitty[] = {
