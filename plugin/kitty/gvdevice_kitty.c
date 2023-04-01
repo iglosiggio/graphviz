@@ -10,11 +10,58 @@
 
 #include "config.h"
 
+#include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <common/types.h>
+#include <gvc/gvio.h>
 #include <gvc/gvplugin_device.h>
 
 #include <cairo.h>
+#ifdef HAVE_LIBZ
+#include <zlib.h>
+#endif
+
+int zlib_compress(char* source, size_t source_len, char** dest, size_t* dest_len, int level)
+{
+#ifdef HAVE_LIBZ
+	int ret;
+	size_t dest_cap;
+	z_stream strm;
+
+	/* allocate deflate state */
+	strm.zalloc = Z_NULL;
+	strm.zfree = Z_NULL;
+	strm.opaque = Z_NULL;
+	ret = deflateInit(&strm, level);
+	if (ret != Z_OK)
+		return ret;
+
+	dest_cap = deflateBound(&strm, source_len);
+	*dest = malloc(dest_cap);
+	if (*dest == NULL)
+		return Z_MEM_ERROR;
+
+	strm.avail_in = source_len;
+	strm.next_in = (Bytef*) source;
+
+	strm.next_out = (Bytef*) *dest;
+	strm.avail_out = dest_cap;
+
+	/* run deflate() on input until output buffer not full,
+	   finish compression if all of source has been read in */
+	ret = deflate(&strm, Z_FINISH);     /* no bad return value */
+	assert(strm.avail_in == 0);      /* all input will be used */
+	assert(ret == Z_STREAM_END);    /* stream will be complete */
+	*dest_len = dest_cap - strm.avail_out;
+
+	/* clean up and return */
+	(void)deflateEnd(&strm);
+	return Z_OK;
+#else
+	return -1;
+#endif
+}
 
 static const char base64_alphabet[] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
@@ -70,28 +117,21 @@ end:
 
 	return buf;
 }
-static void kitty_initialize(GVJ_t* job)
-{
-	job->output_data = malloc(4096);
-}
 
-static void kitty_finalize(GVJ_t* job)
+static void kitty_write(char* data, size_t data_size, int width, int height, bool is_compressed)
 {
-	char* imagedata = job->imagedata;
-	size_t imagedata_size = job->width * job->height * 4;
-	fix_colors(imagedata, imagedata_size);
-
 	const size_t chunk_size = 4096;
-	char* output = base64_encode(imagedata, imagedata_size);
+	char* output = base64_encode(data, data_size);
 	size_t offset = 0;
-	size_t size = base64_encoded_size(imagedata_size);
+	size_t size = base64_encoded_size(data_size);
 
 	while (offset < size) {
 		int has_next_chunk = offset + chunk_size <= size;
-		if (size < chunk_size)
-			fprintf(stdout, "\033_Ga=T,f=32,s=%d,v=%d;", job->width, job->height);
-		else if (offset == 0)
-			fprintf(stdout, "\033_Ga=T,f=32,s=%d,v=%d,m=1;", job->width, job->height);
+		if (offset == 0)
+			fprintf(stdout, "\033_Ga=T,f=32,s=%d,v=%d%s%s;",
+				width, height,
+				chunk_size < size ? ",m=1" : "",
+				is_compressed ? ",o=z" : "");
 		else
 			fprintf(stdout, "\033_Gm=%d;", has_next_chunk);
 
@@ -104,6 +144,26 @@ static void kitty_finalize(GVJ_t* job)
 	free(output);
 }
 
+static void kitty_finalize(GVJ_t* job)
+{
+	char* imagedata = job->imagedata;
+	size_t imagedata_size = job->width * job->height * 4;
+	fix_colors(imagedata, imagedata_size);
+	kitty_write(job->imagedata, imagedata_size, job->width, job->height, false);
+}
+
+static void zkitty_finalize(GVJ_t* job)
+{
+	char* imagedata = job->imagedata;
+	size_t imagedata_size = job->width * job->height * 4;
+	fix_colors(imagedata, imagedata_size);
+
+	char* zbuf;
+	size_t zsize;
+	zlib_compress(imagedata, imagedata_size, &zbuf, &zsize, -1);
+	kitty_write(zbuf, zsize, job->width, job->height, true);
+}
+
 
 static gvdevice_features_t device_features_kitty = {
     GVDEVICE_DOES_TRUECOLOR,    /* flags */
@@ -113,14 +173,30 @@ static gvdevice_features_t device_features_kitty = {
 };
 
 static gvdevice_engine_t device_engine_kitty = {
-    kitty_initialize,	/* kitty_initialize */
-    NULL,               /* kitty_format */
-    kitty_finalize,	/* kitty_finalize */
+    NULL,			/* kitty_initialize */
+    NULL,			/* kitty_format */
+    kitty_finalize,
+};
+
+static gvdevice_features_t device_features_zkitty = {
+    GVDEVICE_DOES_TRUECOLOR,    /* flags */
+    {0.,0.},                    /* default margin - points */
+    {0.,0.},                    /* default page width, height - points */
+    {96.,96.},                  /* dpi */
+};
+
+static gvdevice_engine_t device_engine_zkitty = {
+    NULL,			/* zkitty_initialize */
+    NULL,			/* zkitty_format */
+    zkitty_finalize,
 };
 
 gvplugin_installed_t gvdevice_types_kitty[] = {
 #ifdef CAIRO_HAS_PNG_FUNCTIONS
     {0, "kitty:cairo", 0, &device_engine_kitty, &device_features_kitty},
+#ifdef HAVE_LIBZ
+    {1, "kitty:cairo", 1, &device_engine_zkitty, &device_features_zkitty},
+#endif
 #endif
     {0, NULL, 0, NULL, NULL}
 };
