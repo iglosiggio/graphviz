@@ -2393,6 +2393,7 @@ AC_CONFIG_FILES(Makefile
 	plugin/gdiplus/Makefile
 	plugin/gs/Makefile
 	plugin/gtk/Makefile
+	plugin/kitty/Makefile
 	plugin/lasi/Makefile
 	plugin/pango/Makefile
 	plugin/poppler/Makefile
