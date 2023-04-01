@@ -134,9 +134,10 @@ static void kitty_write(char* data, size_t data_size, int width, int height, boo
 
 		size_t this_chunk_size = has_next_chunk ? chunk_size : size - offset;
 		fwrite(output + offset, this_chunk_size, 1, stdout);
-		fprintf(stdout, "\033\\\n");
+		fprintf(stdout, "\033\\");
 		offset += chunk_size;
 	}
+	fprintf(stdout, "\n");
 
 	free(output);
 }
