@@ -26,10 +26,8 @@ int zlib_compress(char* source, size_t source_len, char** dest, size_t* dest_len
 {
 #ifdef HAVE_LIBZ
 	int ret;
-	size_t dest_cap;
-	z_stream strm;
 
-	/* allocate deflate state */
+	z_stream strm;
 	strm.zalloc = Z_NULL;
 	strm.zfree = Z_NULL;
 	strm.opaque = Z_NULL;
@@ -37,25 +35,22 @@ int zlib_compress(char* source, size_t source_len, char** dest, size_t* dest_len
 	if (ret != Z_OK)
 		return ret;
 
-	dest_cap = deflateBound(&strm, source_len);
+	size_t dest_cap = deflateBound(&strm, source_len);
 	*dest = malloc(dest_cap);
 	if (*dest == NULL)
 		return Z_MEM_ERROR;
 
 	strm.avail_in = source_len;
 	strm.next_in = (Bytef*) source;
-
 	strm.next_out = (Bytef*) *dest;
 	strm.avail_out = dest_cap;
 
-	/* run deflate() on input until output buffer not full,
-	   finish compression if all of source has been read in */
-	ret = deflate(&strm, Z_FINISH);     /* no bad return value */
-	assert(strm.avail_in == 0);      /* all input will be used */
-	assert(ret == Z_STREAM_END);    /* stream will be complete */
+	ret = deflate(&strm, Z_FINISH);
+	assert(strm.avail_in == 0);
+	assert(ret == Z_STREAM_END);
+
 	*dest_len = dest_cap - strm.avail_out;
 
-	/* clean up and return */
 	(void)deflateEnd(&strm);
 	return Z_OK;
 #else
