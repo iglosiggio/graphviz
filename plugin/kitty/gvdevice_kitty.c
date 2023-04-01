@@ -22,9 +22,9 @@
 #include <zlib.h>
 #endif
 
+#ifdef HAVE_LIBZ
 static int zlib_compress(char* source, size_t source_len, char** dest, size_t* dest_len, int level)
 {
-#ifdef HAVE_LIBZ
 	int ret;
 
 	z_stream strm;
@@ -53,10 +53,8 @@ static int zlib_compress(char* source, size_t source_len, char** dest, size_t* d
 
 	(void)deflateEnd(&strm);
 	return Z_OK;
-#else
-	return -1;
-#endif
 }
+#endif
 
 static const char base64_alphabet[] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
@@ -85,7 +83,8 @@ static char* base64_encode(const char* data, size_t size)
 	char* buf = malloc(base64_encoded_size(size));
 
 	while (data_i < size) {
-		char v, d0, d1, d2;
+		char d0, d1, d2;
+		int v;
 
 		d0 = data[data_i];
 		v = (d0 & 0xFC) >> 2; // 1111_1100
@@ -150,6 +149,7 @@ static void kitty_format(GVJ_t* job)
 	kitty_write(job->imagedata, imagedata_size, job->width, job->height, false);
 }
 
+#ifdef HAVE_LIBZ
 static void zkitty_format(GVJ_t* job)
 {
 	char* imagedata = job->imagedata;
@@ -161,8 +161,10 @@ static void zkitty_format(GVJ_t* job)
 	zlib_compress(imagedata, imagedata_size, &zbuf, &zsize, -1);
 	kitty_write(zbuf, zsize, job->width, job->height, true);
 }
+#endif
 
 
+#ifdef CAIRO_HAS_PNG_FUNCTIONS
 static gvdevice_features_t device_features_kitty = {
     GVDEVICE_DOES_TRUECOLOR,    /* flags */
     {0.,0.},                    /* default margin - points */
@@ -176,6 +178,7 @@ static gvdevice_engine_t device_engine_kitty = {
     NULL,			/* kitty_finalize */
 };
 
+#ifdef HAVE_LIBZ
 static gvdevice_features_t device_features_zkitty = {
     GVDEVICE_DOES_TRUECOLOR,    /* flags */
     {0.,0.},                    /* default margin - points */
@@ -188,6 +191,8 @@ static gvdevice_engine_t device_engine_zkitty = {
     zkitty_format,
     NULL,			/* zkitty_finalize */
 };
+#endif
+#endif
 
 gvplugin_installed_t gvdevice_types_kitty[] = {
 #ifdef CAIRO_HAS_PNG_FUNCTIONS
