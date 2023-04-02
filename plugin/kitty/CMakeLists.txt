@@ -1,12 +1,8 @@
 find_package(PANGOCAIRO)
-find_package(PkgConfig)
+find_package(ZLIB)
 
 if(PANGOCAIRO_FOUND)
-
-  add_library(gvplugin_kitty SHARED
-    gvdevice_kitty.c
-    gvplugin_kitty.c
-  )
+  add_library(gvplugin_kitty SHARED gvdevice_kitty.c gvplugin_kitty.c)
 
   target_include_directories(gvplugin_kitty PRIVATE
     ../../lib
@@ -17,13 +13,14 @@ if(PANGOCAIRO_FOUND)
     ../../lib/pathplan
   )
 
-  target_include_directories(gvplugin_kitty PRIVATE SYSTEM
-    ${PANGOCAIRO_INCLUDE_DIRS}
-  )
-
-  target_link_libraries(gvplugin_kitty
-    ${PANGOCAIRO_LINK_LIBRARIES}
-  )
+  if(ZLIB_FOUND)
+    target_include_directories(gvplugin_kitty SYSTEM PRIVATE
+      ${ZLIB_INCLUDE_DIRS}
+    )
+    target_link_libraries(gvplugin_kitty PUBLIC
+      ${ZLIB_LIBRARIES}
+    )
+  endif()
 
   install(
     TARGETS gvplugin_kitty
@@ -43,5 +40,4 @@ if(PANGOCAIRO_FOUND)
       RUNTIME_OUTPUT_NAME gvplugin_kitty-${GRAPHVIZ_PLUGIN_VERSION}
     )
   endif()
-
 endif()
