@@ -17,47 +17,9 @@
 #include <gvc/gvio.h>
 #include <gvc/gvplugin_device.h>
 
-#include <cairo.h>
 #ifdef HAVE_LIBZ
 #include <zlib.h>
 #endif
-
-#ifdef HAVE_LIBZ
-static int zlib_compress(char* source, size_t source_len, char** dest, size_t* dest_len, int level)
-{
-	int ret;
-
-	z_stream strm;
-	strm.zalloc = Z_NULL;
-	strm.zfree = Z_NULL;
-	strm.opaque = Z_NULL;
-	ret = deflateInit(&strm, level);
-	if (ret != Z_OK)
-		return ret;
-
-	size_t dest_cap = deflateBound(&strm, source_len);
-	*dest = malloc(dest_cap);
-	if (*dest == NULL)
-		return Z_MEM_ERROR;
-
-	strm.avail_in = source_len;
-	strm.next_in = (Bytef*) source;
-	strm.next_out = (Bytef*) *dest;
-	strm.avail_out = dest_cap;
-
-	ret = deflate(&strm, Z_FINISH);
-	assert(strm.avail_in == 0);
-	assert(ret == Z_STREAM_END);
-
-	*dest_len = dest_cap - strm.avail_out;
-
-	(void)deflateEnd(&strm);
-	return Z_OK;
-}
-#endif
-
-static const char base64_alphabet[] =
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 
 static void fix_colors(char* imagedata, size_t imagedata_size)
 {
@@ -70,6 +32,9 @@ static void fix_colors(char* imagedata, size_t imagedata_size)
 		i += 4;
 	}
 }
+
+static const char base64_alphabet[] =
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 
 static size_t base64_encoded_size(size_t original_size)
 {
@@ -150,22 +115,6 @@ static void kitty_format(GVJ_t* job)
 	kitty_write(job->imagedata, imagedata_size, job->width, job->height, false);
 }
 
-#ifdef HAVE_LIBZ
-static void zkitty_format(GVJ_t* job)
-{
-	char* imagedata = job->imagedata;
-	size_t imagedata_size = job->width * job->height * 4;
-	fix_colors(imagedata, imagedata_size);
-
-	char* zbuf;
-	size_t zsize;
-	zlib_compress(imagedata, imagedata_size, &zbuf, &zsize, -1);
-	kitty_write(zbuf, zsize, job->width, job->height, true);
-}
-#endif
-
-
-#ifdef CAIRO_HAS_PNG_FUNCTIONS
 static gvdevice_features_t device_features_kitty = {
     GVDEVICE_DOES_TRUECOLOR,    /* flags */
     {0.,0.},                    /* default margin - points */
@@ -180,6 +129,50 @@ static gvdevice_engine_t device_engine_kitty = {
 };
 
 #ifdef HAVE_LIBZ
+static int zlib_compress(char* source, size_t source_len, char** dest, size_t* dest_len, int level)
+{
+	int ret;
+
+	z_stream strm;
+	strm.zalloc = Z_NULL;
+	strm.zfree = Z_NULL;
+	strm.opaque = Z_NULL;
+	ret = deflateInit(&strm, level);
+	if (ret != Z_OK)
+		return ret;
+
+	size_t dest_cap = deflateBound(&strm, source_len);
+	*dest = malloc(dest_cap);
+	if (*dest == NULL)
+		return Z_MEM_ERROR;
+
+	strm.avail_in = source_len;
+	strm.next_in = (Bytef*) source;
+	strm.next_out = (Bytef*) *dest;
+	strm.avail_out = dest_cap;
+
+	ret = deflate(&strm, Z_FINISH);
+	assert(strm.avail_in == 0);
+	assert(ret == Z_STREAM_END);
+
+	*dest_len = dest_cap - strm.avail_out;
+
+	(void)deflateEnd(&strm);
+	return Z_OK;
+}
+
+static void zkitty_format(GVJ_t* job)
+{
+	char* imagedata = job->imagedata;
+	size_t imagedata_size = job->width * job->height * 4;
+	fix_colors(imagedata, imagedata_size);
+
+	char* zbuf;
+	size_t zsize;
+	zlib_compress(imagedata, imagedata_size, &zbuf, &zsize, -1);
+	kitty_write(zbuf, zsize, job->width, job->height, true);
+}
+
 static gvdevice_features_t device_features_zkitty = {
     GVDEVICE_DOES_TRUECOLOR,    /* flags */
     {0.,0.},                    /* default margin - points */
@@ -193,14 +186,11 @@ static gvdevice_engine_t device_engine_zkitty = {
     NULL,			/* zkitty_finalize */
 };
 #endif
-#endif
 
 gvplugin_installed_t gvdevice_types_kitty[] = {
-#ifdef CAIRO_HAS_PNG_FUNCTIONS
     {0, "kitty:cairo", 0, &device_engine_kitty, &device_features_kitty},
 #ifdef HAVE_LIBZ
     {1, "kitty:cairo", 1, &device_engine_zkitty, &device_features_zkitty},
-#endif
 #endif
     {0, NULL, 0, NULL, NULL}
 };

@@ -9,8 +9,10 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/lib/pathplan \
 	$(PANGOCAIRO_CFLAGS)
 
-if WITH_PANGOCAIRO
 noinst_LTLIBRARIES = libgvplugin_kitty_C.la
+if WITH_WIN32
+lib_LTLIBRARIES = libgvplugin_kitty.la
+else
 pkglib_LTLIBRARIES = libgvplugin_kitty.la
 endif
 
