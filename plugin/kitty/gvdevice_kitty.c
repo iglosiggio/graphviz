@@ -12,6 +12,7 @@
 
 #include <assert.h>
 #include <common/types.h>
+#include <cgraph/alloc.h>
 #include <gvc/gvio.h>
 #include <gvc/gvplugin_device.h>
 #include <stdio.h>
@@ -44,7 +45,7 @@ static size_t base64_encoded_size(size_t original_size) {
 static char *base64_encode(const char *data, size_t size) {
   size_t buf_i = 0;
   size_t data_i = 0;
-  char *buf = malloc(base64_encoded_size(size));
+  char *buf = gv_alloc(base64_encoded_size(size));
 
   while (data_i < size) {
     char d0, d1, d2;
@@ -110,7 +111,8 @@ static void kitty_format(GVJ_t *job) {
   char *imagedata = job->imagedata;
   size_t imagedata_size = job->width * job->height * 4;
   fix_colors(imagedata, imagedata_size);
-  kitty_write(job->imagedata, imagedata_size, job->width, job->height, false);
+
+  kitty_write(imagedata, imagedata_size, job->width, job->height, false);
 }
 
 static gvdevice_features_t device_features_kitty = {
@@ -139,9 +141,7 @@ static int zlib_compress(char *source, size_t source_len, char **dest,
     return ret;
 
   size_t dest_cap = deflateBound(&strm, source_len);
-  *dest = malloc(dest_cap);
-  if (*dest == NULL)
-    return Z_MEM_ERROR;
+  *dest = gv_alloc(dest_cap);
 
   strm.avail_in = source_len;
   strm.next_in = (Bytef *)source;
@@ -165,8 +165,12 @@ static void zkitty_format(GVJ_t *job) {
 
   char *zbuf;
   size_t zsize;
-  zlib_compress(imagedata, imagedata_size, &zbuf, &zsize, -1);
+  int ret = zlib_compress(imagedata, imagedata_size, &zbuf, &zsize, -1);
+  assert(ret == Z_OK);
+
   kitty_write(zbuf, zsize, job->width, job->height, true);
+
+  free(zbuf);
 }
 
 static gvdevice_features_t device_features_zkitty = {
