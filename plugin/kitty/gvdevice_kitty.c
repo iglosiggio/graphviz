@@ -22,13 +22,11 @@
 #endif
 
 static void fix_colors(char *imagedata, size_t imagedata_size) {
-  size_t i = 0;
-  while (i < imagedata_size) {
+  for (size_t i = 0; i < imagedata_size; i += 4) {
     char blue = imagedata[i];
     char red = imagedata[i + 2];
     imagedata[i] = red;
     imagedata[i + 2] = blue;
-    i += 4;
   }
 }
 
