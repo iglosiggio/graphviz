@@ -11,12 +11,14 @@
 #include "config.h"
 
 #include <assert.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 #include <common/types.h>
 #include <cgraph/alloc.h>
 #include <gvc/gvio.h>
 #include <gvc/gvplugin_device.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 #ifdef HAVE_LIBZ
 #include <zlib.h>
