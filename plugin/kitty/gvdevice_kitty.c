@@ -30,11 +30,15 @@ static void fix_colors(char *imagedata, size_t imagedata_size) {
   }
 }
 
+static size_t div_up(size_t dividend, size_t divisor) {
+	return dividend / divisor + (dividend % divisor != 0);
+}
+
 static const char base64_alphabet[] =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 
 static size_t base64_encoded_size(size_t original_size) {
-  return (original_size + 2) / 3 * 4;
+  return div_up(original_size, 3) * 4;
 }
 
 static char *base64_encode(const char *data, size_t size) {
