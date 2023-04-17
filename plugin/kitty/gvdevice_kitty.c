@@ -58,15 +58,17 @@ static char *base64_encode(const char *data, size_t size) {
     v = (d0 & 0x03) << 4    // 0000_0011
         | (d1 & 0xF0) >> 4; // 1111_0000
     buf[buf_i++] = base64_alphabet[v];
-    if (size <= data_i + 1)
+    if (size <= data_i + 1) {
       goto end;
+    }
 
     unsigned char d2 = data_i + 2 < size ? data[data_i + 2] : 0;
     v = (d1 & 0x0F) << 2    // 0000_1111
         | (d2 & 0xC0) >> 6; // 1100_0000
     buf[buf_i++] = base64_alphabet[v];
-    if (size <= data_i + 2)
+    if (size <= data_i + 2) {
       goto end;
+    }
 
     v = d2 & 0x3F; // 0011_1111
     buf[buf_i++] = base64_alphabet[v];
@@ -75,8 +77,9 @@ static char *base64_encode(const char *data, size_t size) {
   }
 
 end:
-  while (buf_i % 4 != 0)
+  while (buf_i % 4 != 0) {
     buf[buf_i++] = base64_alphabet[64];
+  }
 
   return buf;
 }
@@ -90,18 +93,19 @@ static void kitty_write(char *data, size_t data_size, int width, int height,
 
   while (offset < size) {
     int has_next_chunk = offset + chunk_size <= size;
-    if (offset == 0)
-      fprintf(stdout, "\033_Ga=T,f=32,s=%d,v=%d%s%s;", width, height,
-              chunk_size < size ? ",m=1" : "", is_compressed ? ",o=z" : "");
-    else
-      fprintf(stdout, "\033_Gm=%d;", has_next_chunk);
+    if (offset == 0) {
+      printf("\033_Ga=T,f=32,s=%d,v=%d%s%s;", width, height,
+             chunk_size < size ? ",m=1" : "", is_compressed ? ",o=z" : "");
+    } else {
+      printf("\033_Gm=%d;", has_next_chunk);
+    }
 
     size_t this_chunk_size = has_next_chunk ? chunk_size : size - offset;
     fwrite(output + offset, this_chunk_size, 1, stdout);
-    fprintf(stdout, "\033\\");
+    printf("\033\\");
     offset += chunk_size;
   }
-  fprintf(stdout, "\n");
+  printf("\n");
 
   free(output);
 }
@@ -121,10 +125,7 @@ static gvdevice_features_t device_features_kitty = {
     {96., 96.},              /* dpi */
 };
 
-static gvdevice_engine_t device_engine_kitty = {
-    NULL,               /* kitty_initialize */
-    kitty_format, NULL, /* kitty_finalize */
-};
+static gvdevice_engine_t device_engine_kitty = { .format = kitty_format };
 
 #ifdef HAVE_LIBZ
 static int zlib_compress(char *source, size_t source_len, char **dest,
@@ -136,8 +137,9 @@ static int zlib_compress(char *source, size_t source_len, char **dest,
   strm.zfree = Z_NULL;
   strm.opaque = Z_NULL;
   ret = deflateInit(&strm, level);
-  if (ret != Z_OK)
+  if (ret != Z_OK) {
     return ret;
+  }
 
   size_t dest_cap = deflateBound(&strm, source_len);
   *dest = gv_alloc(dest_cap);
@@ -179,10 +181,7 @@ static gvdevice_features_t device_features_zkitty = {
     {96., 96.},              /* dpi */
 };
 
-static gvdevice_engine_t device_engine_zkitty = {
-    NULL,                /* zkitty_initialize */
-    zkitty_format, NULL, /* zkitty_finalize */
-};
+static gvdevice_engine_t device_engine_zkitty = { .format = zkitty_format };
 #endif
 
 gvplugin_installed_t gvdevice_types_kitty[] = {
