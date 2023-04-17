@@ -48,21 +48,20 @@ static char *base64_encode(const char *data, size_t size) {
   char *buf = gv_alloc(base64_encoded_size(size));
 
   while (data_i < size) {
-    char d0, d1, d2;
     int v;
 
-    d0 = data[data_i];
+    unsigned char d0 = data[data_i];
     v = (d0 & 0xFC) >> 2; // 1111_1100
     buf[buf_i++] = base64_alphabet[v];
 
-    d1 = data_i + 1 < size ? data[data_i + 1] : 0;
+    unsigned char d1 = data_i + 1 < size ? data[data_i + 1] : 0;
     v = (d0 & 0x03) << 4    // 0000_0011
         | (d1 & 0xF0) >> 4; // 1111_0000
     buf[buf_i++] = base64_alphabet[v];
     if (size <= data_i + 1)
       goto end;
 
-    d2 = data_i + 2 < size ? data[data_i + 2] : 0;
+    unsigned char d2 = data_i + 2 < size ? data[data_i + 2] : 0;
     v = (d1 & 0x0F) << 2    // 0000_1111
         | (d2 & 0xC0) >> 6; // 1100_0000
     buf[buf_i++] = base64_alphabet[v];
